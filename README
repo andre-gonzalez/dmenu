@@ -1,3 +1,9 @@
+My personal build with the following patches:
+- Case Insensitive
+- Ctrl V to Paste
+- Fuzzy Highlight
+- Fuzzy Match
+
 dmenu - dynamic menu
 ====================
 dmenu is an efficient dynamic menu for X.
