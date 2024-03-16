@@ -16,9 +16,9 @@ const
 char *colors[][2] = {
 	/*               fg         bg       */
 	[SchemeNorm] = { "#bbbbbb", "#222222" },
-	[SchemeSel]  = { "#eeeeee", "#005577" },
+	[SchemeSel]  = { "#eeeeee", "#495a91" },
 	[SchemeOut]  = { "#000000", "#00ffff" },
-	[SchemeSelHighlight]  = { "#ffc978", "#005577" },
+	[SchemeSelHighlight]  = { "#ffc978", "#495a91" },
 	[SchemeNormHighlight] = { "#ffc978", "#222222" },
 };
 /* -l option; if nonzero, dmenu uses vertical list with given number of lines */
