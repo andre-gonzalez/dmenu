@@ -1,12 +1,13 @@
 #!/bin/sh
 
-mycache=~/executables.cache
+cachedir="${XDG_CACHE_HOME:-"$HOME/.cache"}"
+cache="$cachedir/dmenu_run"
 
-choice=`cat $mycache | \
-  dmenu -i -l 32 \
-  -fn 12x24 \
-  -nf yellow -nb black -sf black -sb white`
+[ ! -e "$cachedir" ] && mkdir -p "$cachedir"
 
-[ "$?" = "0" ] && exec $choice
-
-list_executables_on_path.sh > $mycache
+IFS=:
+if stest -dqr -n "$cache" $PATH; then
+	stest -flx $PATH | sort -u | tee "$cache"
+else
+	cat "$cache"
+fi
