@@ -24,7 +24,6 @@
 /* macros */
 #define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
                              * MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
-#define LENGTH(X)             (sizeof X / sizeof X[0])
 #define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
 
 /* enums */
@@ -47,6 +46,8 @@ struct item {
 static char text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
+static int dmx = 0, dmy = 0; /* put dmenu at these x and y offsets */
+static unsigned int dmw = 0; /* make dmenu this wide */
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
@@ -59,7 +60,6 @@ static Atom clip, utf8;
 static Display *dpy;
 static Window root, parentwin, win;
 static XIC xic;
-
 
 static Drw *drw;
 static Clr *scheme[SchemeLast];
@@ -164,8 +164,6 @@ drawitem(struct item *item, int x, int y, int w)
 {
 	int r;
 	char *text = item->text;
-
-
 
 	if (item == sel)
 		drw_setscheme(drw, scheme[SchemeSel]);
@@ -340,7 +338,6 @@ match(void)
 	}
 	curr = sel = matches;
 
-
 	calcoffsets();
 }
 
@@ -349,7 +346,6 @@ insert(const char *str, ssize_t n)
 {
 	if (strlen(text) + n > sizeof text - 1)
 		return;
-
 
 	/* move existing text out of the way, insert new text, and update cursor */
 	memmove(&text[cursor + n], &text[cursor], sizeof text - cursor - MAX(n, 0));
@@ -617,7 +613,6 @@ paste(void)
 	drawmenu();
 }
 
-
 static void
 readstdin(void)
 {
@@ -625,7 +620,6 @@ readstdin(void)
 
 	size_t i, linesiz, itemsiz = 0;
 	ssize_t len;
-
 
 	/* read each line from stdin and add it to the item list */
 	for (i = 0; (len = getline(&line, &linesiz, stdin)) != -1; i++) {
@@ -738,9 +732,9 @@ setup(void)
 				if (INTERSECT(x, y, 1, 1, info[i]) != 0)
 					break;
 
-		x = info[i].x_org;
-		y = info[i].y_org + (topbar ? 0 : info[i].height - mh);
-		mw = info[i].width;
+		x = info[i].x_org + dmx;
+		y = info[i].y_org + (topbar ? dmy : info[i].height - mh - dmy);
+		mw = (dmw>0 ? dmw : info[i].width);
 		XFree(info);
 	} else
 #endif
@@ -748,9 +742,9 @@ setup(void)
 		if (!XGetWindowAttributes(dpy, parentwin, &wa))
 			die("could not get embedding window attributes: 0x%lx",
 			    parentwin);
-		x = 0;
-		y = topbar ? 0 : wa.height - mh;
-		mw = wa.width;
+		x = dmx;
+		y = topbar ? dmy : wa.height - mh - dmy;
+		mw = (dmw>0 ? dmw : wa.width);
 	}
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
 	inputw = mw / 3; /* input width: ~33.33% of monitor width */
@@ -769,14 +763,12 @@ setup(void)
 	);
 	XSetClassHint(dpy, win, &ch);
 
-
 	/* input methods */
 	if ((xim = XOpenIM(dpy, NULL, NULL, NULL)) == NULL)
 		die("XOpenIM failed: could not open input device");
 
 	xic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
 	                XNClientWindow, win, XNFocusWindow, win, NULL);
-
 
 	XMapRaised(dpy, win);
 	if (embed) {
@@ -803,6 +795,8 @@ usage(void)
 		"] "
 		"[-l lines] [-p prompt] [-fn font] [-m monitor]"
 		"\n             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]"
+		"\n            "
+		" [-X xoffset] [-Y yoffset] [-W width]" // (arguments made upper case due to conflicts)
 		"\n             [-nhb color] [-nhf color] [-shb color] [-shf color]" // highlight colors
 		"\n");
 }
@@ -814,8 +808,10 @@ main(int argc, char *argv[])
 	int i;
 	int fast = 0;
 
+	for (i = 1; i < argc; i++) {
+		if (argv[i][0] == '\0')
+			continue;
 
-	for (i = 1; i < argc; i++)
 		/* these options take no arguments */
 		if (!strcmp(argv[i], "-v")) {      /* prints version information */
 			puts("dmenu-"VERSION);
@@ -834,6 +830,12 @@ main(int argc, char *argv[])
 		/* these options take one argument */
 		else if (!strcmp(argv[i], "-l"))   /* number of lines in vertical list */
 			lines = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-X"))   /* window x offset */
+			dmx = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-Y"))   /* window y offset (from bottom up if -b) */
+			dmy = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-W"))   /* make dmenu this wide */
+			dmw = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-m"))
 			mon = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */
@@ -858,8 +860,10 @@ main(int argc, char *argv[])
 			colors[SchemeSelHighlight][ColFg] = argv[++i];
 		else if (!strcmp(argv[i], "-w"))   /* embedding window id */
 			embed = argv[++i];
-		else
+		else {
 			usage();
+		}
+	}
 
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		fputs("warning: no locale support\n", stderr);
@@ -879,8 +883,6 @@ main(int argc, char *argv[])
 		die("no fonts could be loaded.");
 
 	lrpad = drw->fonts->h;
-
-
 
 #ifdef __OpenBSD__
 	if (pledge("stdio rpath", NULL) == -1)
