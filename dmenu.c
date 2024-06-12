@@ -31,6 +31,8 @@ enum {
 	SchemeNorm,
 	SchemeSel,
 	SchemeOut,
+	SchemeNormHighlight,
+	SchemeSelHighlight,
 	SchemeLast,
 }; /* color schemes */
 
@@ -38,6 +40,7 @@ struct item {
 	char *text;
 	struct item *left, *right;
 	int out;
+	double distance;
 };
 
 static char text[BUFSIZ] = "";
@@ -65,8 +68,9 @@ static Clr *scheme[SchemeLast];
 
 #include "config.h"
 
-static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
-static char *(*fstrstr)(const char *, const char *) = strstr;
+static char * cistrstr(const char *s, const char *sub);
+static int (*fstrncmp)(const char *, const char *, size_t) = strncasecmp;
+static char *(*fstrstr)(const char *, const char *) = cistrstr;
 
 static unsigned int
 textw_clamp(const char *str, unsigned int n)
@@ -177,6 +181,7 @@ drawitem(struct item *item, int x, int y, int w)
 		, text
 		, 0
 		);
+	drawhighlights(item, x, y, w);
 	return r;
 }
 
@@ -278,6 +283,10 @@ static void
 match(void)
 {
 
+	if (fuzzy) {
+		fuzzymatch();
+		return;
+	}
 	static char **tokv = NULL;
 	static int tokn = 0;
 
@@ -424,6 +433,11 @@ keypress(XKeyEvent *ev)
 			while (cursor > 0 && !strchr(worddelimiters, text[nextrune(-1)]))
 				insert(NULL, nextrune(-1) - cursor);
 			break;
+		case XK_v:
+		case XK_V:
+			XConvertSelection(dpy, (ev->state & ShiftMask) ? clip : XA_PRIMARY,
+			                  utf8, utf8, win, CurrentTime);
+			return;
 		case XK_y: /* paste selection */
 		case XK_Y:
 			XConvertSelection(dpy, (ev->state & ShiftMask) ? clip : XA_PRIMARY,
@@ -776,12 +790,14 @@ usage(void)
 {
 	die("usage: dmenu [-bv"
 		"f"
-		"i"
+		"s"
+		"F"
 		"] "
 		"[-l lines] [-p prompt] [-fn font] [-m monitor]"
 		"\n             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]"
 		"\n            "
 		" [-X xoffset] [-Y yoffset] [-W width]" // (arguments made upper case due to conflicts)
+		"\n             [-nhb color] [-nhf color] [-shb color] [-shf color]" // highlight colors
 		"\n");
 }
 
@@ -804,9 +820,11 @@ main(int argc, char *argv[])
 			topbar = 0;
 		} else if (!strcmp(argv[i], "-f")) { /* grabs keyboard before reading stdin */
 			fast = 1;
-		} else if (!strcmp(argv[i], "-i")) { /* case-insensitive item matching */
-			fstrncmp = strncasecmp;
-			fstrstr = cistrstr;
+		} else if (!strcmp(argv[i], "-s")) { /* case-sensitive item matching */
+			fstrncmp = strncmp;
+			fstrstr = strstr;
+		} else if (!strcmp(argv[i], "-F")) { /* disable/enable fuzzy matching, depends on default */
+			fuzzy = !fuzzy;
 		} else if (i + 1 == argc)
 			usage();
 		/* these options take one argument */
@@ -832,6 +850,14 @@ main(int argc, char *argv[])
 			colors[SchemeSel][ColBg] = argv[++i];
 		else if (!strcmp(argv[i], "-sf"))  /* selected foreground color */
 			colors[SchemeSel][ColFg] = argv[++i];
+		else if (!strcmp(argv[i], "-nhb")) /* normal hi background color */
+			colors[SchemeNormHighlight][ColBg] = argv[++i];
+		else if (!strcmp(argv[i], "-nhf")) /* normal hi foreground color */
+			colors[SchemeNormHighlight][ColFg] = argv[++i];
+		else if (!strcmp(argv[i], "-shb")) /* selected hi background color */
+			colors[SchemeSelHighlight][ColBg] = argv[++i];
+		else if (!strcmp(argv[i], "-shf")) /* selected hi foreground color */
+			colors[SchemeSelHighlight][ColFg] = argv[++i];
 		else if (!strcmp(argv[i], "-w"))   /* embedding window id */
 			embed = argv[++i];
 		else {
