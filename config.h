@@ -18,8 +18,8 @@ char *colors[][2] = {
 	[SchemeNorm]          = { "#cdd6f4", "#1e1e2e" }, /* text        on base    */
 	[SchemeSel]           = { "#1e1e2e", "#94e2d5" }, /* base        on blue    */
 	[SchemeOut]           = { "#1e1e2e", "#a6e3a1" }, /* base        on green   */
-	[SchemeSelHighlight]  = { "#f38ba8", "#89b4fa" }, /* red         on blue    */
-	[SchemeNormHighlight] = { "#f38ba8", "#1e1e2e" }, /* red         on base    */
+	[SchemeSelHighlight]  = { "#8839ef", "#94e2d5" }, /* dark mauve  on teal    */
+	[SchemeNormHighlight] = { "#cba6f7", "#1e1e2e" }, /* mauve       on base    */
 };
 /* -l option; if nonzero, dmenu uses vertical list with given number of lines */
 static unsigned int lines      = 0;
