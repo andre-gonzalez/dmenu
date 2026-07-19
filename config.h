@@ -16,7 +16,7 @@ char *colors[][2] = {
 	/*                       fg         bg       */
 	/* Catppuccin Mocha */
 	[SchemeNorm]          = { "#cdd6f4", "#1e1e2e" }, /* text        on base    */
-	[SchemeSel]           = { "#1e1e2e", "#89b4fa" }, /* base        on blue    */
+	[SchemeSel]           = { "#1e1e2e", "#94e2d5" }, /* base        on blue    */
 	[SchemeOut]           = { "#1e1e2e", "#a6e3a1" }, /* base        on green   */
 	[SchemeSelHighlight]  = { "#f38ba8", "#89b4fa" }, /* red         on blue    */
 	[SchemeNormHighlight] = { "#f38ba8", "#1e1e2e" }, /* red         on base    */
